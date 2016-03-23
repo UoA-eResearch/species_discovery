@@ -1,0 +1,9 @@
+.directory
+*.xls
+*.csv
+*.json
+*.zip
+geocoding
+map_timemap_attempt
+timemap.2.0.1
+stats.txt

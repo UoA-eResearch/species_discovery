@@ -1,0 +1,174 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+    <title>Global Biodiversity Information Facility Timeline Map</title>
+    <script type="text/javascript" src="https://maps.google.com/maps/api/js?key=AIzaSyCCAfY8R6Sr29NG_AZx_piVdzOVuyRDDTI"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.2/jquery.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+    <script src="oms.min.js"></script>
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
+    <link href="style.css" type="text/css" rel="stylesheet"/>
+    <script type="text/javascript">
+      $(function() {
+        // Timeline slider
+          
+        $( "#timeline" ).slider({
+          range: true,
+          min: 1700,
+          max: 2014,
+          values: [ 1700, 1800 ],
+          slide: function( event, ui) {
+            var min = ui.values[0];
+            var max = ui.values[1];
+            $("#year").text(min + " - " + max);
+          },
+          stop: function( event, ui ) {
+            var min = ui.values[0];
+            var max = ui.values[1];
+            for (var i in markers) {
+              var m = markers[i];
+              if (m.year >= min && m.year <= max) {
+                m.setVisible(true);
+              } else {
+                m.setVisible(false);
+              }
+            }
+            for (var i in lines) {
+              var allVisible = true;
+              var line = lines[i];
+              for (var j in line.markers) {
+                var m = line.markers[j];
+                if (!m.getVisible()) {
+                  allVisible = false;
+                  break;
+                }
+              }
+              line.setVisible(allVisible);
+            }
+          }
+        });
+        $("#year").text($("#timeline").slider("values", 0) +
+          " - " + $("#timeline").slider("values", 1));
+        
+        // Map
+        
+        map = new google.maps.Map(document.getElementById('map'), {
+          center: {lat: 0, lng: 0},
+          zoom: 2
+        });
+          
+        // Markers
+        
+        var oms = new OverlappingMarkerSpiderfier(map);
+        
+        var infowindow = new google.maps.InfoWindow();
+        
+        oms.addListener('click', function(m, e) {
+          infowindow.setContent(m.desc);
+          infowindow.open(map, m);
+        });
+        
+        window.handleFilter = function(filter) {
+          for (var i in markers) {
+            var m = markers[i];
+            m.setVisible(m.sciname == filter);
+          }
+          for (var i in lines) {
+            var l = lines[i];
+            l.setVisible(l.markers[0].sciname == filter);
+          }
+        }
+        
+        var markers = [];
+        var lines = [];
+        
+        var markerColors = ['purple', 'yellow', 'blue', 'white', 'green', 'red', 'black', 'orange', 'gray']
+        
+        var color = 'brown';
+        for (var i = 0; i < markerColors.length; i++) {
+          var min = 1700 + i * 35;
+          var max = 1700 + (i+1) * 35 - 1;
+          color = markerColors[i];
+          $('#legend').append(min + '-' + max + ':<img src="' + 'https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_' + color + '.png' + '"/> ');
+        }
+        
+        window.speciesDict = {}
+      
+        $.getJSON('gbif.json', function(data) {
+          $.each(data, function(i, d) {
+            var year = d.year;
+            var color = 'blue';
+            for (var i = 0; i < markerColors.length; i++) {
+              if (year >= 1700 + i * 35 && year < 1700 + (i+1) * 35) {
+                color = markerColors[i];
+              }
+            }
+            
+            var min = $("#timeline").slider("values", 0);
+            var max = $("#timeline").slider("values", 1);
+
+            var m = new google.maps.Marker({
+              position: d.latlng,
+              title: d.name,
+              icon: 'https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_' + color + '.png',
+              map: map,
+              visible: year >= min && year <= max
+            });
+            
+            m.year = year;
+            m.sciname = d.sciname;
+            
+            markers.push(m);
+
+            if (!speciesDict[d.sciname]) speciesDict[d.sciname] = [];
+            speciesDict[d.sciname].push(m);
+
+            m.desc = d.info + "<a class='filter' href='#' onclick='handleFilter(\"" + d.sciname + "\")'>Limit display to just " + d.sciname + "</a>"
+            
+            oms.addMarker(m);
+          });
+          
+          $.each(speciesDict, function(k, v) {
+            if (v.length > 1) {
+              var path = [];
+              var allVisible = true;
+              for (var i in v) {
+                path.push(v[i].getPosition());
+                if (!v[i].getVisible()) allVisible = false;
+              }
+              var line = new google.maps.Polyline({
+                path: path,
+                //geodesic: true,
+                strokeColor: '#FF0000',
+                strokeOpacity: 1.0,
+                strokeWeight: 2,
+                visible: allVisible
+              });
+              line.markers = v;
+              lines.push(line);
+              line.setMap(map);
+            }
+          });
+          console.log('drew ' + markers.length + ' markers and ' + lines.length + ' polylines');
+        });
+    });
+  </script>
+  </head>
+
+  <body>
+    <div id="timemap">
+        <div id="timelinecontainer">
+          <h3>Global Biodiversity Information Facility Timeline Map</h3>
+          <div id="timeline"></div>
+          <p style='float:left'>Description Year: <span id='year'></span></p>
+          <p style='float:right' id='legend'>Legend: </p>
+        </div>
+        
+        <div id="mapcontainer">
+          <div id="map"></div>
+        </div>
+    </div>
+  </body>
+</html>
