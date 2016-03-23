@@ -12,6 +12,9 @@ Run the following commands:
 
 This creates a server listening on port 8080 and 8081. JSON requests can be made to 8081, e.g. http://localhost:8081/?query=nyc
 
+#Dependencies
+Run `pip install xlrd xlwt xlutils requests` to install dependencies
+
 #Geocoding
 Run `python geocode.py dataset.xls` to read the Locality field from the xls, geocode it and write the latlong back to a copy of the xls file.
 
