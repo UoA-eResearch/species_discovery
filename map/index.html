@@ -10,23 +10,47 @@
     <script src="oms.min.js"></script>
     <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
     <link href="style.css" type="text/css" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <script type="text/javascript">
       $(function() {
         // Timeline slider
+        
+        function get_query() {
+          var url = location.href;
+          var qs = url.substring(url.indexOf('?') + 1).split('&');
+          for (var i = 0, result = {}; i < qs.length; i++) {
+            qs[i] = qs[i].split('=');
+            result[qs[i][0]] = decodeURIComponent(qs[i][1]);
+          }
+          return result;
+        }
+
+        var $_GET = get_query();
+        var type = 'worms';
+        var minYear = 1750;
+        var scale = 35;
+        if ($_GET['type'] == 'gbif') {
+          type = 'gbif';
+          minYear = 1700;
+          var scale = 40;
+          $('#title').text('Global Biodiversity Information Facility Timeline Map');
+          document.title = 'Global Biodiversity Information Facility Timeline Map';
+        }
           
         $( "#timeline" ).slider({
           range: true,
-          min: 1758,
+          min: minYear,
           max: 2014,
-          values: [ 1758, 1800 ],
+          values: [ minYear, 1800 ],
           slide: function( event, ui) {
             var min = ui.values[0];
             var max = ui.values[1];
             $("#year").text(min + " - " + max);
           },
-          stop: function( event, ui ) {
+          change: function( event, ui ) {
             var min = ui.values[0];
             var max = ui.values[1];
+            $("#year").text(min + " - " + max);
             for (var i in markers) {
               var m = markers[i];
               if (m.year >= min && m.year <= max) {
@@ -51,6 +75,26 @@
         });
         $("#year").text($("#timeline").slider("values", 0) +
           " - " + $("#timeline").slider("values", 1));
+          
+        $('.play').click(function() {
+          if (!window.t) {
+            window.t = setInterval(function() {
+              var max = $("#timeline").slider("values", 1);
+              if ($( "#timeline" ).slider( "option", "max" ) == max) {
+                clearInterval(window.t);
+                window.t = false;
+                $('.play i').text('play_arrow');
+                return;
+              }
+              $("#timeline").slider("values", 1, max+1);
+            }, 1000);
+            $('.play i').text('pause');
+          } else {
+            clearInterval(window.t);
+            window.t = false;
+            $('.play i').text('play_arrow');
+          }
+        });
         
         // Map
         
@@ -84,24 +128,25 @@
         var markers = [];
         var lines = [];
         
-        var markerColors = ['purple', 'yellow', 'blue', 'white', 'green', 'red', 'black', 'orange', 'gray']
+        var markerColors = ['red','orange', 'yellow', 'green', 'blue', 'pink', 'purple', 'black']
         
         var color = 'brown';
+        var circles = {};
         for (var i = 0; i < markerColors.length; i++) {
-          var min = 1750 + i * 30;
-          var max = 1750 + (i+1) * 30 - 1;
+          var min = minYear + i * scale;
+          var max = minYear + (i+1) * scale - 1;
           color = markerColors[i];
-          $('#legend').append(min + '-' + max + ':<img src="' + 'https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_' + color + '.png' + '"/> ');
+          $('#legend').append(min + '-' + max + ':<img src="' + 'img/' + color + '.png' + '"/> ');
         }
         
         window.speciesDict = {}
       
-        $.getJSON('worms.json', function(data) {
+        $.getJSON(type + '.json', function(data) {
           $.each(data, function(i, d) {
             var year = d.year;
             var color = 'blue';
             for (var i = 0; i < markerColors.length; i++) {
-              if (year >= 1750 + i * 30 && year < 1750 + (i+1) * 30) {
+              if (year >= minYear + i * scale && year < minYear + (i+1) * scale) {
                 color = markerColors[i];
               }
             }
@@ -112,7 +157,7 @@
             var m = new google.maps.Marker({
               position: d.latlng,
               title: d.name,
-              icon: 'https://maps.gstatic.com/mapfiles/ridefinder-images/mm_20_' + color + '.png',
+              icon: 'img/' + color + '.png',
               map: map,
               visible: year >= min && year <= max
             });
@@ -160,9 +205,10 @@
   <body>
     <div id="timemap">
         <div id="timelinecontainer">
-          <h3>World Register of Marine Species Timeline Map</h3>
+          <h3 id='title'>World Register of Marine Species Timeline Map</h3>
           <div id="timeline"></div>
           <p style='float:left'>Description Year: <span id='year'></span></p>
+          <button class='play' style='float:left; margin-left: 10px;margin-top: 10px;'><i class="material-icons">play_arrow</i></button>
           <p style='float:right' id='legend'>Legend: </p>
         </div>
         
