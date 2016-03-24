@@ -81,10 +81,7 @@
             window.t = setInterval(function() {
               var max = $("#timeline").slider("values", 1);
               if ($( "#timeline" ).slider( "option", "max" ) == max) {
-                clearInterval(window.t);
-                window.t = false;
-                $('.play i').text('play_arrow');
-                return;
+                max = $("#timeline").slider("values", 0); // go back to start
               }
               $("#timeline").slider("values", 1, max+1);
             }, 1000);
