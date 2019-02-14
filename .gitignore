@@ -1,7 +1,6 @@
 .directory
 *.xls
 *.csv
-*.json
 *.zip
 geocoding
 map_timemap_attempt
